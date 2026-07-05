@@ -40,5 +40,24 @@ class NFA:
 
     # ----- à compléter --------------------------------------------------------
     def to_dfa(self) -> DFA:
-        # TODO (E1.3) : construction des sous-ensembles.
-        raise NotImplementedError("NFA.to_dfa — à compléter (E1.3)")
+        start = self._eps_closure(frozenset({self.start}))
+        names = {start: "S0"}
+        todo = [start]
+        trans = {}
+        accept = set()
+
+        while todo:
+            cur = todo.pop()
+            if any(s in self.accept for s in cur):
+                accept.add(names[cur])
+            for a in self.alphabet:
+                nxt = self._eps_closure(self._move(cur, a))
+                if not nxt:
+                    continue
+                if nxt not in names:
+                    names[nxt] = f"S{len(names)}"
+                    todo.append(nxt)
+                trans[(names[cur], a)] = names[nxt]
+
+        return DFA(transitions=trans, start=names[start],
+                    accept=accept, alphabet=set(self.alphabet))

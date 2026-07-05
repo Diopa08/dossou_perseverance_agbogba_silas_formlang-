@@ -11,8 +11,17 @@ class SequentialFST:
     identity_on_missing: bool = False
 
     def transduce(self, w: str) -> str:
-        # TODO (E1.4) : lettre par lettre, à partir de self.start.
-        raise NotImplementedError("SequentialFST.transduce — à compléter (E1.4)")
+        state = self.start
+        out = []
+        for a in w:
+            if (state, a) in self.transitions:
+                state, b = self.transitions[(state, a)]
+                out.append(b)
+            elif self.identity_on_missing:
+                out.append(a)
+            else:
+                return None
+        return "".join(out)
 
 
 def compose(t1: "SequentialFST", t2: "SequentialFST") -> "SequentialFST":
@@ -27,9 +36,14 @@ def compose(t1: "SequentialFST", t2: "SequentialFST") -> "SequentialFST":
 
 
 def leet_fst() -> "SequentialFST":
-    # TODO (E1.4) : un seul état 'q0' (final) ; 4/a 3/e 0/o 1/i 5/s ;
-    # identité sinon (utiliser identity_on_missing=True).
-    raise NotImplementedError("leet_fst — à compléter (E1.4)")
+    trans = {
+        ("q0", "4"): ("q0", "a"),
+        ("q0", "0"): ("q0", "o"),
+        ("q0", "3"): ("q0", "e"),
+        ("q0", "1"): ("q0", "i"),
+        ("q0", "5"): ("q0", "s"),
+    }
+    return SequentialFST(trans, "q0", {"q0"}, identity_on_missing=True)
 
 
 def reverse_twoway(w: str) -> str:

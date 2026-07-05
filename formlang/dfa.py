@@ -16,13 +16,15 @@ class DFA:
             self.alphabet = {a for (_, a) in self.transitions}
 
     def run(self, w: str):
-        # TODO (E1.1) : partir de self.start, suivre self.transitions lettre par
-        # lettre ; renvoyer None si une transition manque, sinon l'état atteint.
-        raise NotImplementedError("DFA.run — à compléter (E1.1)")
+        state = self.start
+        for a in w:
+            state = self.transitions.get((state, a))
+            if state is None:
+                return None
+        return state
 
     def accepts(self, w: str) -> bool:
-        # TODO (E1.1) : True ssi run(w) in self.accept.
-        raise NotImplementedError("DFA.accepts — à compléter (E1.1)")
+        return self.run(w) in self.accept
 
     # ----- fourni : utilitaires pour la minimisation --------------------------
     def _reachable(self) -> set:
@@ -53,8 +55,41 @@ class DFA:
         return states, trans
 
     def minimize(self) -> "DFA":
-        # TODO (E1.2) : raffinement de partition (Moore).
-        raise NotImplementedError("DFA.minimize — à compléter (E1.2)")
+        states, trans = self._completed()
+        finals = {s for s in states if s in self.accept}
+        non_finals = states - finals
+        partition = [p for p in (finals, non_finals) if p]
+
+        while True:
+            block_of = {s: i for i, block in enumerate(partition) for s in block}
+            new_partition = []
+            for block in partition:
+                groups = {}
+                for s in block:
+                    sig = tuple(block_of[trans[(s, a)]] for a in sorted(self.alphabet))
+                    groups.setdefault(sig, set()).add(s)
+                new_partition.extend(groups.values())
+            if len(new_partition) == len(partition):
+                partition = new_partition
+                break
+            partition = new_partition
+
+        rep = {}
+        for block in partition:
+            r = min(block)
+            for s in block:
+                rep[s] = r
+
+        new_start = rep[self.start]
+        new_accept = {rep[s] for s in finals}
+        new_trans = {}
+        for block in partition:
+            r = min(block)
+            for a in self.alphabet:
+                new_trans[(r, a)] = rep[trans[(r, a)]]
+
+        return DFA(transitions=new_trans, start=new_start,
+                    accept=new_accept, alphabet=set(self.alphabet))
 
     def num_states(self) -> int:
         st = {self.start}

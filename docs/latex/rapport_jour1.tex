@@ -1,0 +1,91 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Rapport — Jour 1}{Étage régulier : automates finis \& transducteurs}
+{Binôme : DOSSOU Persévérance \& AGBOGBA Silas \quad$\bullet$\quad Modules : \texttt{formlang/dfa.py, nfa.py, fst.py}}
+
+\section*{A. Réponses théoriques}
+
+\subsection*{Q1.1 (0,5) — expression régulière}
+$$L_1 = (a|o|r)^* \, o \, r \, (a|o|r)^*$$
+\noindent Justification : tout mot de $L_1$ s'écrit comme un préfixe quelconque sur
+$\{a,o,r\}$, suivi du facteur exact \texttt{or}, suivi d'un suffixe quelconque sur
+$\{a,o,r\}$. Comme l'alphabet est $\{a,o,r\}$, cette regex engendre exactement les
+mots contenant \texttt{or} comme facteur, et aucun mot n'en contenant pas (le facteur
+\texttt{or} doit apparaître littéralement entre les deux étoiles).
+
+\subsection*{Q1.2 (1) — du non-déterminisme à l'AFD minimal}
+
+\paragraph{(a) AFN.} États $q_0,q_1,q_2$ ; $q_0$ initial, $q_2$ final.
+$$\delta(q_0,a)=\{q_0\},\ \delta(q_0,o)=\{q_0,q_1\},\ \delta(q_0,r)=\{q_0\},\quad
+\delta(q_1,r)=\{q_2\},\quad \delta(q_2,a)=\delta(q_2,o)=\delta(q_2,r)=\{q_2\}.$$
+
+\paragraph{(b) Table des sous-ensembles (déterminisation).}
+\begin{center}\small
+\begin{tabular}{@{}lccl@{}}
+\toprule
+état AFD & sur \texttt{o} & sur \texttt{a},\texttt{r} & remarque\\\midrule
+$S_0=\{q_0\}$ & $\{q_0,q_1\}$ & $\{q_0\}$ & initial\\
+$S_1=\{q_0,q_1\}$ & $\{q_0,q_1\}$ & $\{q_0\}$ (\texttt a), $\{q_0,q_2\}$ (\texttt r) & \texttt o « armé »\\
+$S_2=\{q_0,q_2\}$ & $\{q_0,q_1,q_2\}$ & $\{q_0,q_2\}$ & accepteur\\
+$S_3=\{q_0,q_1,q_2\}$ & $\{q_0,q_1,q_2\}$ & $\{q_0,q_2\}$ (les deux) & accepteur\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{(c) Partitions de minimisation (Moore).}
+Partition initiale : $\{S_0,S_1\}$ (non-finaux) $\mid$ $\{S_2,S_3\}$ (finaux).
+Raffinement : sur \texttt r, $S_0\to S_0$ (bloc non-final) mais $S_1\to S_2$ (bloc
+final) $\Rightarrow$ $S_0$ et $S_1$ se séparent. $S_2$ et $S_3$ mènent toujours au bloc
+final quel que soit le symbole $\Rightarrow$ ils fusionnent. Partition finale :
+$\{S_0\},\{S_1\},\{S_2,S_3\}$.
+
+\paragraph{(d) AFD minimal.} 3 états : $A=S_0$, $B=S_1$, $C=\{S_2,S_3\}$ — voir
+diagramme et table $\delta$ dans \texttt{jour1\_regulier.tex} (section notions). Nombre
+d'états : $\boxed{3}$.
+
+\subsection*{Q1.3 (0,5) — facteur vs sous-séquence}
+$$L_1' = (a|o|r)^*\, o\, (a|o|r)^*\, r\, (a|o|r)^*$$
+\noindent Différence : $L_1$ exige que \texttt{o} et \texttt{r} soient
+\textbf{consécutifs} (facteur) ; $L_1'$ exige seulement qu'un \texttt{o} apparaisse
+\textbf{avant} un \texttt{r}, avec un nombre quelconque de lettres entre les deux
+(sous-séquence).
+
+\paragraph{Inclusion $L_1\subseteq L_1'$.} Si $w$ contient \texttt{or} comme facteur,
+alors $w$ contient un \texttt{o} immédiatement suivi d'un \texttt{r} : c'est en
+particulier un cas particulier de « \texttt{o} suivi, pas forcément immédiatement,
+d'un \texttt{r} » (l'écart entre les deux peut être nul). Donc $w\in L_1'$.
+
+\paragraph{Mot de $L_1'\setminus L_1$.} $w=\texttt{oar}$ : contient \texttt{o} avant
+\texttt{r} (donc $w\in L_1'$) mais ne contient pas le facteur \texttt{or} (donc
+$w\notin L_1$).
+
+\section*{B. Exercices de programmation}
+
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E1.1] \texttt{DFA.run}/\texttt{accepts} implémentés dans
+    \texttt{formlang/dfa.py} ; table $\delta$ de \texttt{\_DFA\_OR} (états A/B/C)
+    remplie dans \texttt{apps/shield/detector.py} conformément à l'AFD minimal de
+    Q1.2. \emph{Test \texttt{test\_detector\_or} : passé.}
+  \item[E1.2] \texttt{DFA.minimize} : raffinement de Moore sur l'automate complété
+    (\texttt{\_completed}), partition finaux/non-finaux puis raffinement par
+    signature des blocs cibles jusqu'à stabilisation. \emph{Test
+    \texttt{test\_minimisation\_3\_etats} : passé.}
+  \item[E1.3] \texttt{NFA.to\_dfa} : construction des sous-ensembles à partir de
+    \texttt{\_eps\_closure}/\texttt{\_move} fournis, exploration en largeur des
+    parties atteignables. \emph{Test \texttt{test\_nfa\_to\_dfa\_equivalence} :
+    passé.}
+  \item[E1.4] \texttt{leet\_fst} (un état \texttt{q0}, final, table $4\!:\!a,
+    0\!:\!o, 3\!:\!e, 1\!:\!i, 5\!:\!s$, \texttt{identity\_on\_missing=True}) +
+    \texttt{SequentialFST.transduce} lettre par lettre. \emph{Tests
+    \texttt{test\_leet\_idempotent}, \texttt{test\_fst\_composition} : passés.}
+\end{description}
+
+\begin{exemple}[Sortie de référence obtenue]
+\ttfamily \$ pytest -q tests/test\_regular.py\\ 6 passed
+\end{exemple}
+\noindent (Le 7\textsuperscript{e} test du fichier, \texttt{test\_delimiters\_pda},
+relève du Jour 2 — hors périmètre de cette fiche.)
+
+\end{document}

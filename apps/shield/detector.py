@@ -3,7 +3,9 @@ from formlang.dfa import DFA
 
 _DFA_OR = DFA(
     transitions={
-        # TODO (E1.1)
+        ("A", "a"): "A", ("A", "o"): "B", ("A", "r"): "A",
+        ("B", "a"): "A", ("B", "o"): "B", ("B", "r"): "C",
+        ("C", "a"): "C", ("C", "o"): "C", ("C", "r"): "C",
     },
     start="A", accept={"C"}, alphabet={"a", "o", "r"},
 )
