@@ -27,8 +27,23 @@ def build_word(pres, root_str, sufs) -> Term:
 # ----- à compléter ----------------------------------------------------------
 def morpho_automaton() -> TreeAutomaton:
     A = TreeAutomaton(final_states={"WORD"})
-    # TODO (E3.2) : ajouter les règles avec A.add_rule(symbole, (états...), résultat).
-    raise NotImplementedError("morpho_automaton — à compléter (E3.2)")
+    # feuilles
+    A.add_rule("prefix", (), "PFX")
+    A.add_rule("root", (), "ROOT")
+    A.add_rule("suffix", (), "SFX")
+    A.add_rule("nil", (), "NIL")
+    # chaînes de préfixes / suffixes
+    A.add_rule("prefixes", ("PFX", "NIL"), "PFCHAIN")
+    A.add_rule("prefixes", ("PFX", "PFCHAIN"), "PFCHAIN")
+    A.add_rule("suffixes", ("SFX", "NIL"), "SFCHAIN")
+    A.add_rule("suffixes", ("SFX", "SFCHAIN"), "SFCHAIN")
+    # racine + suite de suffixes
+    A.add_rule("rest", ("ROOT", "NIL"), "REST")
+    A.add_rule("rest", ("ROOT", "SFCHAIN"), "REST")
+    # mot complet
+    A.add_rule("word", ("NIL", "REST"), "WORD")
+    A.add_rule("word", ("PFCHAIN", "REST"), "WORD")
+    return A
 
 
 # ----- FOURNI ---------------------------------------------------------------

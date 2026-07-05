@@ -1,0 +1,100 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Rapport — Jour 3}{Automates d'arbres (pivot) \& hash-consing}
+{Binôme : DOSSOU Persévérance \& AGBOGBA Silas \quad$\bullet$\quad Modules : \texttt{formlang/tree.py} — Apps : \texttt{morpho, shield, hashcons}}
+
+\section*{A. Réponses théoriques}
+
+\subsection*{Q3.1 (0,5) — déterminisme \& coût}
+Dans \texttt{morpho\_automaton} et \texttt{shield\_automaton}, les règles sont
+enregistrées dans un dictionnaire \texttt{delta} indexé par la clé
+\texttt{(symbole, états\_enfants)}. Un dictionnaire Python associe au plus une
+valeur à une clé donnée : il ne peut donc jamais exister deux règles
+$f(q_1,\dots,q_n)\to q$ et $f(q_1,\dots,q_n)\to q'$ avec $q\neq q'$ pour la même
+clé — les deux automates sont \textbf{déterministes} par construction.
+\emph{Conséquence :} pour un terme $t$, \texttt{TreeAutomaton.run} calcule un
+unique état par nœud (aucun choix, aucun retour en arrière) ; le parcours
+post-ordre visite chaque nœud exactement une fois $\Rightarrow$ coût
+$O(n)$ où $n$ est le nombre de nœuds de $t$.
+
+\subsection*{Q3.2 (0,5) — la frontière ne suffit pas}
+Deux arbres $T_1=\texttt{word}(\texttt{prefixes}(\texttt{prefix(na)},
+\texttt{nil}),\ \texttt{rest}(\texttt{root(pend)},\texttt{nil}))$ (classe
+\texttt{PREFIXED}, frontière \texttt{na pend}) et $T_2$ où le même préfixe
+\texttt{na} serait rattaché comme second niveau d'un circonfixe (structure
+imbriquée différente, même séquence de feuilles \texttt{na pend}) ont une
+frontière identique mais des classes différentes (\texttt{PREFIXED} vs.
+\texttt{CIRCUMFIXED}, cf. énoncé §4.2.3). Un AFD de mots ne lit que la
+\emph{séquence} des feuilles, jamais leur regroupement en sous-arbres ; il ne
+peut donc pas distinguer $T_1$ de $T_2$, alors que le BUTA lit l'arbre
+\emph{en profondeur} (règles \texttt{prefixes}/\texttt{rest}) et les classe
+différemment.
+
+\subsection*{Q3.3 (0,5) — théorème du yield}
+Un mot morphologique accepté est de la forme \texttt{word(pc, rest(root, sc))}
+où \texttt{pc} est une chaîne \texttt{prefixes} de $p\geq 0$ préfixes (état
+\texttt{PFCHAIN} ou \texttt{NIL}) et \texttt{sc} une chaîne \texttt{suffixes}
+de $s\geq 0$ suffixes. La frontière (yield) est la concaténation, dans
+l'ordre de lecture gauche-droite, des labels des feuilles \texttt{prefix},
+\texttt{root}, \texttt{suffix} : exactement $p^{*}\,r\,s^{*}$ (un préfixe
+répété, une racine, un suffixe répété) — c'est \emph{le même langage
+régulier} $p^{*}rs^{*}$ que celui de l'AFD du Jour 1 (§2, avec $p,r,s$ jouant
+le rôle de $a,o,r$). Le BUTA généralise donc bien l'automate fini : sa
+frontière retombe sur le langage régulier déjà reconnu par le DFA/NFA du
+Jour 1.
+
+\subsection*{Q3.4 (0,5) — réduplication}
+La réduplication $\{ww \mid w\in\Sigma^*\}$ n'est pas un langage d'arbres
+régulier. Un BUTA ne dispose que d'un nombre fini d'états $Q$ ; pour accepter
+$ww$, l'automate devrait, en lisant la seconde moitié, « comparer » chaque
+lettre à la lettre correspondante de la première moitié déjà lue — or l'état
+courant ne peut encoder qu'une information bornée (au plus $|Q|$
+possibilités), indépendante de $|w|$. Pour $|w|$ suffisant, deux mots
+distincts $w\neq w'$ de même longueur mèneraient au même état après lecture
+de la première moitié, et l'automate ne pourrait plus distinguer $ww$ de
+$ww'$ : un argument de pompage sur les états (analogue au lemme de l'étoile)
+montre l'absence de reconnaissance. Culy (1985) illustre précisément ce
+phénomène pour le bambara, dont le vocabulaire dépasse le hors-contexte à
+cause d'un motif de réduplication.
+
+\section*{B. Exercices de programmation}
+
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E3.1] \texttt{TreeAutomaton.run} : étiquetage post-ordre récursif
+    (état \texttt{REJECT} propagé dès qu'un enfant rejette ou qu'aucune règle
+    ne correspond) ; \texttt{accepts} teste l'appartenance de l'état racine à
+    \texttt{self.final}. \emph{Tests \texttt{test\_morpho\_*}, etc. débloqués.}
+  \item[E3.2] Règles $\Delta$ de \texttt{morpho\_automaton} : feuilles
+    \texttt{prefix/root/suffix/nil}, chaînage \texttt{prefixes}/\texttt{suffixes},
+    \texttt{rest} (racine + suffixes), \texttt{word} (préfixes + rest) $\to$
+    \texttt{WORD}. \emph{Tests \texttt{test\_morpho\_accept\_et\_classes},
+    \texttt{test\_morpho\_rejet} : passés.}
+  \item[E3.3] \texttt{\_seq(x,y)} : \texttt{DANGER} si l'un des deux est déjà
+    \texttt{DANGER} ou si $\{x,y\}=\{\texttt{OVR},\texttt{ROLE}\}$, sinon la
+    sévérité maximale ; \texttt{frame}/\texttt{sys} font passer un
+    \texttt{OVR} ou \texttt{ROLE} directement encapsulé à \texttt{DANGER}.
+    \emph{Test \texttt{test\_shield\_blocage} : passé.}
+  \item[E3.4] \texttt{product(a1,a2)} : états = paires $(q_1,q_2)$, une règle
+    $(sym,(q_1,q_2)\dots)\to(r_1,r_2)$ pour chaque paire de règles de même
+    arité sur le même symbole ; finaux = $F_1\times F_2$. \emph{Test
+    \texttt{test\_produit\_intersection} : passé.}
+  \item[E3.5] \texttt{CompactStore.intern} : internement récursif des
+    enfants, clé canonique \texttt{(symbol, label, kids\_ids)}, partage via
+    table ; \texttt{get} reconstruit l'arbre exact (round-trip) ;
+    \texttt{compression} $=1-\text{uniques}/\text{total}$. \emph{Tests
+    \texttt{test\_round\_trip\_exact}, \texttt{test\_sous\_arbres\_identiques\_partages},
+    \texttt{test\_compression\_positive} : passés.}
+  \item[E3.6 (bonus)] \texttt{enc\_automaton} : compte les feuilles
+    \texttt{enc} plafonné à 2 (même signature que \texttt{shield\_automaton})
+    ; \texttt{dangerous\_and\_double\_encoded} = \texttt{product(shield\_automaton(),
+    enc\_automaton())}. \emph{Test \texttt{test\_shield\_double\_encodage\_P45} :
+    passé.}
+\end{description}
+
+\begin{exemple}[Sortie de référence obtenue]
+\ttfamily \$ pytest -q tests/test\_tree.py tests/test\_hashcons.py\\ 8 passed
+\end{exemple}
+
+\end{document}
