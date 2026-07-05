@@ -1,0 +1,103 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Rapport — Jour 2}{Étage hors-contexte : grammaires \& automate à pile}
+{Binôme : DOSSOU Persévérance \& AGBOGBA Silas \quad$\bullet$\quad Modules : \texttt{formlang/pda.py, cfg.py}}
+
+\section*{A. Réponses théoriques}
+
+\subsection*{Q2.1 (1,5) — non-régularité de $D=\{[^n]^n \mid n\ge 0\}$ par pompage}
+
+\paragraph{Par l'absurde.} Supposons $D$ régulier. Par le lemme de pompage, il existe
+$p\ge 0$ tel que tout mot $w\in D$ avec $|w|\ge p$ s'écrit $w=xyz$ avec $|xy|\le p$,
+$y\neq\varepsilon$, et $xy^iz\in D$ pour tout $i\ge 0$.
+
+\paragraph{Choix du mot.} On prend $w=[^p\,]^p$ (longueur $2p\ge p$, donc $w\in D$).
+
+\paragraph{Discussion de toute découpe admissible.} Comme $|xy|\le p$, le préfixe $xy$
+est entièrement contenu dans le bloc des $p$ premières occurrences de \texttt{[}
+(le mot ne contient aucun \texttt{]} avant la position $p$). Donc $y$ est nécessairement
+composé uniquement de \texttt{[} : $y=[^k$ avec $k\ge 1$ (puisque $y\neq\varepsilon$).
+Ceci est vrai \textbf{quelle que soit} la découpe $x,y,z$ satisfaisant $|xy|\le p$ :
+il n'y a aucune liberté sur la nature de $y$, seulement sur sa position et sa longueur
+$k\in\{1,\dots,p\}$.
+
+\paragraph{Mot pompé hors de $D$.} Pompons avec $i=2$ :
+$$xy^2z = [^{\,p+k}\,]^{\,p}.$$
+Ce mot possède $p+k$ crochets ouvrants et seulement $p$ fermants. Comme $k\ge 1$, on a
+$p+k\neq p$, donc $xy^2z\notin D$.
+
+\paragraph{Conclusion.} Ceci contredit la conclusion du lemme de pompage
+($xy^iz\in D$ pour tout $i$). Donc l'hypothèse de départ est fausse :
+$\boxed{D \text{ n'est pas régulier.}}$
+
+\paragraph{Conséquence pour le projet.} Un AFD (jour 1) ne dispose que d'une mémoire
+\textbf{finie} (un nombre fini d'états) : il ne peut pas compter une profondeur
+d'imbrication non bornée. Le \texttt{SingularityDetector} de jour 1 est donc
+structurellement incapable de vérifier que les délimiteurs \texttt{[\,\dots\,]} /
+\texttt{(\,\dots\,)} sont bien imbriqués, quel que soit le nombre d'états qu'on lui
+donnerait : c'est précisément ce que $D$ (le langage de Dyck simplifié) met en évidence.
+Il faut une mémoire non bornée mais disciplinée — la \textbf{pile} du \texttt{DelimiterPDA}.
+
+\subsection*{Q2.2 (0,5) — grammaire des prompts bien parenthésés}
+
+$$S \rightarrow S\,S \mid [\,S\,] \mid (\,S\,) \mid a \mid o \mid r \mid \varepsilon$$
+
+\noindent (implémentée dans \texttt{balanced\_cfg()}, \texttt{formlang/cfg.py}).
+
+\paragraph{Exemple de dérivation} pour le mot \texttt{(a[o])} :
+$$S \Rightarrow (S) \Rightarrow (SS) \Rightarrow (a\,S) \Rightarrow (a\,[S]) \Rightarrow (a\,[o])$$
+
+\subsection*{Q2.3 (0,5) — ambiguïté}
+
+\paragraph{$G$ est ambiguë.} Le mot \texttt{aaa} (obtenu via deux applications de
+$S\to SS$) admet au moins deux arbres de dérivation distincts.
+
+\paragraph{Arbre 1 — association à gauche $(a\,a)\,a$.}
+$$S \to S\,S \to (S\,S)\,S \to (a\,a)\,a$$
+racine $S$ avec fils gauche $S\to S\,S \to a\,a$, fils droit $a$.
+
+\paragraph{Arbre 2 — association à droite $a\,(a\,a)$.}
+$$S \to S\,S \to S\,(S\,S) \to a\,(a\,a)$$
+racine $S$ avec fils gauche $a$, fils droit $S\to S\,S\to a\,a$.
+
+Les deux arbres dérivent le même mot \texttt{aaa} avec une structure différente (le
+regroupement des deux $S$ dans $S\to SS$ n'est pas déterminé) $\Rightarrow$ $G$ est
+\textbf{ambiguë}.
+
+\paragraph{Grammaire non ambiguë équivalente} (association à droite imposée) :
+$$S \rightarrow T\,S \mid T \qquad\qquad T \rightarrow [\,S\,] \mid (\,S\,) \mid a \mid o \mid r \mid \varepsilon$$
+Chaque $T$ est un bloc atomique ; $S$ les concatène en séquence associée à droite de
+façon unique, ce qui supprime le choix de regroupement responsable de l'ambiguïté.
+
+\section*{B. Exercices de programmation}
+
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E2.1] \texttt{DelimiterPDA.accepts} (\texttt{formlang/pda.py}) : simulation
+    par une pile Python (\texttt{list}). Un jeton de \texttt{ignore}
+    ($a,o,r$) est sauté ; un ouvrant est empilé ; un fermant vérifie que le sommet de
+    pile est bien l'ouvrant correspondant (\texttt{self.match}), sinon rejet immédiat ;
+    acceptation ssi la pile est vide en fin de lecture. \emph{Test
+    \texttt{test\_delimiters\_pda} : passé.}
+  \item[E2.2] \texttt{CFG.generate(max\_len)} (\texttt{formlang/cfg.py}) : parcours en
+    largeur des formes sententielles à partir de $(S)$, développement du non-terminal
+    le plus à gauche (dérivation gauche), collecte des mots purement terminaux de
+    longueur $\le$ \texttt{max\_len}. \emph{Piège de l'énoncé traité} : avec
+    $S\to SS$, les formes purement non-terminales ($S,SS,SSS,\dots$) ont 0 terminal et
+    ne seraient jamais élaguées par la seule borne sur les terminaux
+    $\Rightarrow$ on borne \textbf{aussi} le nombre total de symboles de la forme
+    sententielle (\texttt{max\_symbols = max\_len + \#non-terminaux + 2}), ce qui
+    n'élague aucun mot de longueur $\le$ \texttt{max\_len}. Un ensemble
+    \texttt{visited} évite de retraiter deux fois la même forme. \emph{Test
+    \texttt{test\_cfg\_engendre\_des\_mots\_equilibres} : passé.}
+\end{description}
+
+\begin{exemple}[Sortie de référence obtenue]
+\ttfamily \$ pytest -q tests/test\_regular.py tests/test\_cfg\_nerode.py\\
+8 passed, 1 failed
+\end{exemple}
+\noindent (L'unique échec, \texttt{test\_nerode\_trois\_classes}, relève du Jour 5 —
+hors périmètre de cette fiche.)
+
+\end{document}
