@@ -1,0 +1,73 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Rapport — Jour 5}{Intégration \& Myhill–Nerode}
+{Binôme : DOSSOU Persévérance \& AGBOGBA Silas \quad$\bullet$\quad Modules : \texttt{pipeline.py, formlang/myhill\_nerode.py}}
+
+\section*{A. Réponses théoriques}
+
+\subsection*{Q5.1 (0,5) — Myhill–Nerode et lien avec le Jour 1}
+Pour un langage $L\subseteq\Sigma^*$, on pose $u\approx_L v$ ssi, pour tout
+suffixe $w\in\Sigma^*$, $uw\in L \Leftrightarrow vw\in L$. C'est une relation
+d'équivalence invariante à droite. Le théorème de Myhill–Nerode énonce que
+$L$ est régulier ssi $\approx_L$ a un nombre fini de classes, et que ce
+nombre (l'indice de $\approx_L$) est exactement le nombre d'états de l'AFD
+minimal reconnaissant $L$.
+
+Pour $L_1=\{w \mid w \text{ contient le facteur } or\}$ (Jour 1), l'AFD
+minimal obtenu par la construction des sous-ensembles puis le raffinement de
+Moore possède $\boxed{3}$ états ($A$, $B$, $C$ — cf. rapport Jour 1, Q1.2).
+Le calcul de \texttt{nerode\_classes} sur des mots témoins retrouve
+exactement ces $\boxed{3}$ classes : le nombre de classes de $\approx_{L_1}$
+et le nombre d'états de l'AFD minimal du Jour 1 coïncident, comme l'annonce
+le théorème.
+
+\subsection*{Q5.2 (0,5) — suffixes témoins et fusion d'états}
+Deux mots $u,v$ sont dits indistinguables par un ensemble de suffixes
+témoins $S$ si, pour tout $s\in S$, $accepts(us)=accepts(vs)$ — c'est-à-dire
+que leurs signatures $\big(1[us\in L]\big)_{s\in S}$ sont identiques.
+Ce critère est une \emph{approximation calculable} de $\approx_L$ : au lieu
+de tester tous les suffixes possibles (infinis), on se limite à un
+échantillon fini $S$ de suffixes représentatifs (ici $\{\varepsilon, r, or\}$
+pour $L_1$).
+
+Le lien avec la minimisation (Jour 1, E1.2) est direct : à la minimisation,
+deux états de l'AFD complété sont fusionnés en un seul bloc dès qu'ils ne se
+distinguent jamais dans le futur, c'est-à-dire dès qu'aucun suffixe ne les
+sépare — exactement le critère « même signature sur les suffixes témoins ».
+Regrouper les mots par signature (\texttt{nerode\_classes}) revient donc à
+retrouver, à partir des mots eux-mêmes, la même partition d'états que le
+raffinement de Moore obtient à partir de l'automate.
+
+\section*{B. Exercices de programmation}
+
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E5.1] \texttt{pipeline.analyze\_word} : chaîne
+    \texttt{leet\_normalize} (FST, Jour 1) $\to$ \texttt{contains\_or} (AFD,
+    Jour 1) $\to$ \texttt{well\_parenthesized} (PDA, Jour 2) sur le mot
+    normalisé. \texttt{pipeline.analyze\_morpho} : \texttt{discover} (PRE/SUF
+    sur le vocabulaire) $\to$ \texttt{segment\_to\_tree} $\to$
+    \texttt{classify} via le BUTA morphologique (Jour 3). \emph{Tests
+    \texttt{test\_pipeline\_word}, \texttt{test\_pipeline\_morpho} : passés.}
+  \item[E5.3] \texttt{nerode\_classes(accepts, words, suffixes)} : regroupe
+    les mots par signature \texttt{tuple(accepts(w+s) for s in suffixes)}
+    dans un dictionnaire, puis renvoie les classes (listes de mots de même
+    signature). \emph{Test \texttt{test\_nerode\_trois\_classes} : passé.}
+\end{description}
+
+\begin{exemple}[Sortie de référence obtenue]
+\ttfamily
+\$ pytest -q\\
+28 passed\\[4pt]
+\$ python pipeline.py --word 4or\\
+normalisé(FST) : aor\\
+facteur\_or(AFD) : True\\
+délimiteurs\_ok(PDA) : True
+\end{exemple}
+
+\noindent L'ensemble des 28 tests du projet (Jours 1 à 5) passe : le pipeline
+assemble les étages sans réécrire aucun automate, conformément à la règle
+gate.
+
+\end{document}
