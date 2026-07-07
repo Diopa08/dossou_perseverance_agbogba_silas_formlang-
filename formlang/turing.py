@@ -35,5 +35,31 @@ class TuringMachine:
 
     # ----- à compléter --------------------------------------------------------
     def run(self, word: str, max_steps: int = 1_000_000, trace: bool = False) -> "TMResult":
-        # TODO (E4.1)
-        raise NotImplementedError("TuringMachine.run — à compléter (E4.1)")
+        tape = {i: c for i, c in enumerate(word)}
+        pos = 0
+        state = self.start
+        trc = []
+        steps = 0
+        while True:
+            if trace:
+                trc.append((steps, state, self._window(tape), pos))
+            if state in self.accept or state in self.reject:
+                break
+            a = tape.get(pos, self.blank)
+            key = (state, a)
+            if key not in self.transitions:
+                break  # arrêt : pas de transition (mot rejeté si état non final)
+            new_state, b, d = self.transitions[key]
+            tape[pos] = b
+            if d == "L":
+                pos -= 1
+            elif d == "R":
+                pos += 1
+            state = new_state
+            steps += 1
+            if steps > max_steps:
+                raise RuntimeError(
+                    f"TuringMachine.run : max_steps={max_steps} dépassé (boucle infinie ?)"
+                )
+        return TMResult(accepted=state in self.accept, tape=self._read(tape),
+                         steps=steps, trace=trc)

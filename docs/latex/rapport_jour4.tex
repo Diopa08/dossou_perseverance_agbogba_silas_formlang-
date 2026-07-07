@@ -1,0 +1,154 @@
+\documentclass[11pt,a4paper]{scrartcl}
+\usepackage{iutparakou}
+\begin{document}
+
+\fichetitre{Rapport — Jour 4}{Calculabilité : machine de Turing \& machine universelle}
+{Binôme : DOSSOU Persévérance \& AGBOGBA Silas \quad$\bullet$\quad Modules : \texttt{formlang/turing.py, utm.py} — App : \texttt{apps/mtu}}
+
+\section*{A. Réponses théoriques}
+
+\subsection*{Q4.1 (0,5) — encodage $\langle M\rangle$}
+
+\paragraph{Schéma.} On numérote (implicitement, par leur nom de chaîne) les états
+$Q$ et les symboles $\Gamma$ de $M$. La table $\delta$ est linéarisée comme un
+dictionnaire de quintuplets $(q,a)\mapsto(q',b,d)$ avec $d\in\{L,R,S\}$, sérialisé
+en JSON (clé textuelle \texttt{"q|a"} $\to$ liste \texttt{[q',b,d]}), auquel on
+ajoute l'état initial, l'ensemble des états acceptants, le symbole blanc et
+l'ensemble des états de rejet. Le tout est produit par
+\texttt{json.dumps(\dots, sort\_keys=True)} : $\langle M\rangle$ est donc une
+\textbf{chaîne de caractères unique}.
+
+\paragraph{Injectivité.} Deux machines distinctes (transitions, état initial,
+acceptants, blanc ou rejet différents) produisent deux dictionnaires Python
+distincts, donc deux chaînes JSON distinctes (JSON est une sérialisation
+déterministe ici grâce à \texttt{sort\_keys=True} : pas d'ambiguïté d'ordre) :
+\texttt{encode} est injective.
+
+\paragraph{Décodabilité.} \texttt{decode} est la réciproque exacte : elle relit le
+JSON, sépare chaque clé \texttt{"q\textbar a"} sur le premier \texttt{"\textbar"}
+pour retrouver $(q,a)$, et reconstruit un \texttt{TuringMachine} avec exactement
+les mêmes champs. Le \emph{piège} de l'énoncé (« sortie non triée $\Rightarrow$
+round-trip non déterministe ») est neutralisé par le tri systématique des clés
+avant sérialisation : $\texttt{decode}(\texttt{encode}(M))$ redonne une machine
+strictement équivalente à $M$ pour tout mot d'entrée.
+
+\subsection*{Q4.2 (0,5) — la machine universelle}
+
+\paragraph{Description.} $U$ prend en entrée $\langle M\rangle \# w$ (ici, deux
+arguments séparés : la description $\langle M\rangle$ et le mot $w$). $U$
+\textbf{décode} $\langle M\rangle$ (retrouve $Q,\Gamma,\delta,q_0,F$), puis
+\textbf{simule} pas à pas $M$ sur $w$ en utilisant la même boucle générique
+\texttt{TuringMachine.run} — $U$ ne réécrit aucune logique propre à $M$, elle
+délègue entièrement l'exécution.
+
+\paragraph{Invariant maintenu.} À chaque étape $t$ de la simulation, le ruban de
+$U$ (restreint à la zone utile) est exactement le ruban qu'aurait $M$ après $t$
+pas d'exécution directe sur $w$, et l'état courant simulé correspond à l'état
+réel de $M$ à ce même pas.
+
+\paragraph{Argument de correction (récurrence sur le nombre de pas $t$).}
+\emph{Base} ($t=0$) : le ruban initial de la simulation est $w$, comme celui de
+$M(w)$ à $t=0$ — vrai par construction. \emph{Hérédité} : si l'invariant est vrai
+au pas $t$ (même état, même ruban), alors $U$ lit le même symbole que $M$
+lirait, applique la même transition $\delta(q,a)=(q',b,d)$ (car $\delta$ décodée
+est exactement celle de $M$), écrit le même symbole, déplace la tête de la même
+façon $\Rightarrow$ l'invariant est vrai au pas $t+1$. Par récurrence, $U$
+s'arrête en acceptant $w$ ssi $M$ accepte $w$, avec le même ruban final —
+exactement ce que vérifie \texttt{test\_utm\_simule\_comme\_la\_machine}.
+
+\subsection*{Q4.3 (0,5) — surcoût (sourcé)}
+
+Simuler une machine multi-ruban par une machine à un seul ruban entraîne un
+ralentissement au plus \textbf{quadratique} dans le nombre de pas ; à l'inverse,
+simuler $M$ par $U$ (programme enregistré) coûte $O(t\cdot|\langle M\rangle|)$ par
+pas simulé, où $t$ est le nombre de pas de $M$ (chaque pas de $M$ nécessite de
+reparcourir $\langle M\rangle$ pour retrouver la transition applicable). Hennie
+et Stearns (\emph{Two-Tape Simulation of Multitape Turing Machines}, J. ACM
+13(4), 1966) montrent qu'un ralentissement seulement \textbf{logarithmique}
+(plutôt que quadratique) est possible entre certaines classes de machines
+multi-ruban ; aucune borne n'est ici affirmée « de mémoire » sans cette
+référence, conformément à la charte d'honnêteté intellectuelle de l'énoncé.
+
+\subsection*{Q4.4 (0,5) — indécidabilité}
+
+\paragraph{Réduction depuis \textsc{halt}.} Le problème \textsc{halt} (« $M$
+s'arrête-t-elle sur $w$ ? ») est indécidable (Turing, 1936). Supposons par
+l'absurde qu'il existe un décideur $D$ pour « $U$ s'arrête sur
+$\langle M\rangle \# w$ ». Comme $U$ simule fidèlement $M$ sur $w$ pas à pas
+(Q4.2), $U$ s'arrête sur $\langle M\rangle\#w$ \emph{si et seulement si} $M$
+s'arrête sur $w$. On pourrait alors décider \textsc{halt} en construisant
+$\langle M\rangle$ (calculable, Q4.1) et en appelant $D$ dessus — contradiction
+avec l'indécidabilité de \textsc{halt}. Donc \textbf{« $U$ s'arrête sur
+$\langle M\rangle\#w$ » est indécidable}.
+
+\paragraph{Commentaire.} « Universel $\neq$ omniscient » : $U$ peut exécuter
+\emph{n'importe quelle} machine décrite, mais elle ne peut pas, en général,
+prédire à l'avance si cette exécution va terminer. L'universalité (simuler tout
+calcul) et la décidabilité (prédire l'issue de tout calcul) sont deux propriétés
+distinctes ; le projet gagne la première au jour 4 mais perd définitivement la
+seconde — c'est la leçon annoncée dès la présentation générale de l'énoncé.
+
+\section*{B. Exercices de programmation}
+
+\begin{description}[leftmargin=1.6em,style=nextline]
+  \item[E4.1] \texttt{TuringMachine.run} (\texttt{formlang/turing.py}) : ruban
+    représenté par un \texttt{dict} \{position $\to$ symbole\} (bi-infini, pas de
+    limite de taille), tête = un entier \texttt{pos}. À chaque pas : lecture de
+    \texttt{tape.get(pos, blank)}, recherche de $(q,a)$ dans la table ; absence de
+    transition $\Rightarrow$ arrêt immédiat (mot rejeté si l'état courant n'est
+    pas acceptant, \textbf{sans lever d'exception} — piège de l'énoncé). Un
+    compteur \texttt{max\_steps} (option \texttt{trace=True} pour obtenir la trace
+    complète pas-à-pas) garantit qu'une boucle infinie lève une erreur explicite
+    plutôt que de bloquer indéfiniment. \emph{Test \texttt{test\_trace\_disponible} : passé.}
+  \item[E4.2] \texttt{encode}/\texttt{decode} (\texttt{formlang/utm.py}) : voir
+    Q4.1 ; \texttt{UniversalTM.run} décode puis délègue à
+    \texttt{TuringMachine.run}. \emph{Tests \texttt{test\_round\_trip\_encodage},
+    \texttt{test\_utm\_simule\_comme\_la\_machine} : passés.}
+  \item[E4.3] Tables \texttt{ADD}/\texttt{SUB} (\texttt{apps/mtu/machines.py}) et
+    \texttt{Calculatrice} (\texttt{apps/mtu/calculator.py}) :
+    \begin{itemize}
+      \item \textbf{ADD} : 3 états. On parcourt $n$ (état \texttt{q0}), le
+        \texttt{+} est \textbf{fusionné} en \texttt{1} (état \texttt{q1}), on
+        parcourt $m$ jusqu'au blanc, demi-tour, et on \textbf{retire un} \texttt{1}
+        (compensation exacte du \texttt{+} converti) avant d'accepter — trace
+        conforme à l'exemple de l'énoncé ($2+1=3$ sur \texttt{11+1}).
+      \item \textbf{SUB} : appariement par marquage. On cherche un \texttt{1} non
+        marqué dans $m$ (marqué \texttt{X}, de gauche à droite, états
+        \texttt{q1}/\texttt{q2}), \emph{apparié} à un \texttt{1} non barré de $n$,
+        pris le \textbf{plus à droite} (barré \texttt{Y}, états \texttt{q3}/\texttt{q4}) —
+        ce choix « droite $\to$ gauche » garantit que les \texttt{1} restants (la
+        réponse) forment un bloc \textbf{contigu} à gauche, sans trou. On répète
+        jusqu'à épuiser $m$ (nettoyage \texttt{q5}/\texttt{q6} : \texttt{X},
+        \texttt{Y}, \texttt{-} effacés, les \texttt{1} non barrés restent) ou
+        jusqu'à épuiser $n$ avant $m$ (état \texttt{q\_zero} : $m>n$, tout le
+        ruban est effacé, résultat $0$). Les trois points délicats de l'énoncé
+        sont traités : gérer ses propres marques (\texttt{q1} saute les
+        \texttt{X}, \texttt{q3} saute les \texttt{Y}), barrage droite$\to$gauche
+        pour la contiguïté, fin de $m$ détectée par un \textbf{blanc} et non un
+        compteur.
+      \item \texttt{Calculatrice.addition/soustraction} appellent directement
+        \texttt{ADD}/\texttt{SUB} (aucune nouvelle boucle de MT) ;
+        \texttt{multiplication} est $m$ additions \emph{composées} ;
+        \texttt{division} est une suite de soustractions composées comptant le
+        quotient ; \texttt{chainer} applique une liste d'opérations séquentiellement.
+    \end{itemize}
+    \emph{Tests \texttt{test\_add\_sub\_machines\_directes},
+    \texttt{test\_calculatrice\_exhaustif} (49 couples $(n,m)\in\{0,\dots,6\}^2$),
+    \texttt{test\_chainage}, \texttt{test\_division\_par\_zero} : passés.}
+  \item[E4.4] \texttt{UniversalInterpreter.run(machine, word)} encode
+    \texttt{machine} puis délègue à \texttt{UniversalTM} (\texttt{apps/mtu/interpreter.py}) ;
+    \texttt{addition\_via\_utm}/\texttt{soustraction\_via\_utm} construisent le
+    mot d'entrée unaire puis passent par l'interpréteur universel — aucune
+    boucle de ruban n'est réécrite dans \texttt{apps/mtu}, conformément à la
+    règle « gate » du jour. \emph{Test \texttt{test\_interpreteur\_universel} : passé.}
+\end{description}
+
+\begin{exemple}[Sortie de référence obtenue]
+\ttfamily \$ pytest -q tests/test\_turing.py tests/test\_calc.py\\
+8 passed
+\end{exemple}
+\noindent (Sur l'ensemble du dépôt : 25 passed, 3 failed — les 3 échecs restants,
+\texttt{test\_nerode\_trois\_classes}, \texttt{test\_pipeline\_word},
+\texttt{test\_pipeline\_morpho}, relèvent tous du Jour 5, non encore traité.)
+
+\end{document}
